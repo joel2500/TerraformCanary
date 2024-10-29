@@ -1,0 +1,71 @@
+---
+- name: Automate Terraform with Ansible
+  hosts: localhost
+  vars:
+    traffic_distribution: "{{ distribution }}"  # Variable passed dynamically
+    enable_green_env: "{{ enable_green }}"       # Variable passed dynamically for green
+    enable_blue_env: "{{ enable_blue }}"         # Variable passed dynamically for blue
+    destroy_blue_env: "{{ destroy_blue }}"
+    destroy_green_env: "{{ destroy_green }}"
+
+  tasks:
+    - name: Ensure Terraform is installed
+      ansible.builtin.command:
+        cmd: terraform --version
+      ignore_errors: yes
+
+    - name: Initialize Terraform
+      ansible.builtin.command:
+        cmd: terraform init
+      args:
+        chdir: /opt/switch/terraform-infra  # Set the path to your Terraform directory
+
+    - name: Terraform Plan
+      ansible.builtin.command:
+        cmd: terraform plan
+      args:
+        chdir: /opt/switch/terraform-infra  # Set the path to your Terraform directory
+
+    - name: Apply Terraform Configuration for Green Environment
+      ansible.builtin.command:
+        cmd: >
+          terraform apply -auto-approve
+          -var 'traffic_distribution={{ traffic_distribution }}'
+          -var 'enable_green_env={{ enable_green_env }}'
+      args:
+        chdir: /opt/switch/terraform-infra   # Set the path to your Terraform directory
+      when: enable_green_env == "true"  # Condition to run this task only if green is enabled
+
+    - name: Apply Terraform Configuration for Blue Environment
+      ansible.builtin.command:
+        cmd: >
+          terraform apply -auto-approve
+          -var 'traffic_distribution={{ traffic_distribution }}'
+          -var 'enable_blue_env={{ enable_blue_env }}'
+      args:
+        chdir: /opt/switch/terraform-infra   # Set the path to your Terraform directory
+      when: enable_blue_env == "true"  # Condition to run this task only if blue is enabled
+
+    - name: Terraform Plan
+      ansible.builtin.command:
+        cmd: terraform output
+      args:
+        chdir: /opt/switch/terraform-infra
+
+    - name: Apply Terraform Configuration for Green Environment
+      ansible.builtin.command:
+        cmd: >
+          terraform destroy -auto-approve
+          -var 'destroy_green_env={{ destroy_green_env }}'
+      args:
+        chdir: /opt/switch/terraform-infra   # Set the path to your Terraform directory
+      when: destroy_green_env == "true"
+
+    - name: Apply Terraform Configuration for Green Environment
+      ansible.builtin.command:
+        cmd: >
+          terraform destroy -auto-approve
+          -var 'destroy_blue_env={{ destroy_blue_env }}'
+      args:
+        chdir: /opt/switch/terraform-infra   # Set the path to your Terraform directory
+      when: destroy_blue_env == "true"
