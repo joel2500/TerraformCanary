@@ -1,0 +1,2 @@
+traffic_distribution=blue
+enable_blue_env=true
