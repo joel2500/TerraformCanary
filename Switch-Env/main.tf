@@ -1,9 +1,7 @@
 locals {
-  vpc_id              = "vpc-08a51e4a8e1a4226b"
-  private_a_subnet_id = "subnet-0e0317ff5d26c8b12"
-  private_b_subnet_id = "subnet-0f4ec7d0ea60605bd"
-  public_a_subnet_id  = "subnet-09316aa45c8669d28"
-  public_b_subnet_id  = "subnet-08c7b53b2ca1d202b"
+  vpc_id              = "vpc-080b7e85cda68dbae"
+  private_a_subnet_id = "subnet-09a29ef8ea86a7040"
+  public_a_subnet_id  = "subnet-036ad38d4c1c48c97"
 
   ubuntu_ami = "ami-042e8287309f5df03"
 
@@ -67,7 +65,6 @@ resource "aws_lb" "app" {
   load_balancer_type = "application"
   subnets = [
     local.public_a_subnet_id,
-    local.public_b_subnet_id
   ]
   security_groups = [aws_security_group.web.id]
 }
