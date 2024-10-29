@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+    environment {
+        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        AWS_DEFAULT_REGION = "us-east-1"
+    }
+    stages {
+        stage('Checkout SCM') {
+            steps {
+                script {
+                    checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/joel2500/TerraformCanary.git']])
+                }
+            }
+        }
+        stage('Initializing Terraform') {
+            steps {
+                script {
+                    dir('Switch-Env') {
+                        sh 'terraform init'
+                    }
+                }
+            }
+        }
+        stage('Validate Terraform') {
+            steps {
+                script {
+                    dir('Switch-Env') {
+                        sh 'terraform validate'
+                    }
+                }
+            }
+        }
+        stage('Read Variables') {
+            steps {
+                script {
+                    // Read variables from the file
+                    def vars = readFile('variables.txt').split('\n').collectEntries { line ->
+                        def (key, value) = line.split('=')
+                        [(key.trim()): value.trim()]
+                    }
+
+                    // Set the variables
+                    env.TRAFFIC_DISTRIBUTION = vars['traffic_distribution']
+                    env.ENABLE_BLUE_ENV = vars['enable_blue_env']
+                    env.ENABLE_GREEN_ENV = vars['enable_green_env']
+
+                    // Optional: Print variable values for debugging
+                    echo "Traffic Distribution: ${env.TRAFFIC_DISTRIBUTION}"
+                    echo "Enable Blue Env: ${env.ENABLE_BLUE_ENV}"
+                    echo "Enable Green Env: ${env.ENABLE_GREEN_ENV}"
+
+                    // Fail the pipeline if both blue and green environments are enabled
+                    if (env.ENABLE_BLUE_ENV == 'true' && env.ENABLE_GREEN_ENV == 'true') {
+                        error("Pipeline failed: Both blue and green environments cannot be enabled at the same time.")
+                    }
+                }
+            }
+        }
+        stage('Terraform Plan Blue') {
+            when {
+                expression { env.ENABLE_BLUE_ENV == 'true' }
+            }
+            steps {
+                script {
+                    dir('Switch-Env') {
+                        sh "terraform plan -var 'traffic_distribution=blue' -var 'enable_blue_env=${env.ENABLE_BLUE_ENV}'"
+                    }
+                }
+            }
+        }
+        stage('Terraform Plan Green') {
+            when {
+                expression { env.ENABLE_GREEN_ENV == 'true' }
+            }
+            steps {
+                script {
+                    dir('Switch-Env') {
+                        sh "terraform plan -var 'traffic_distribution=green' -var 'enable_green_env=${env.ENABLE_GREEN_ENV}'"
+                    }
+                }
+            }
+        }
+    }
+}
